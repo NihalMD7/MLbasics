@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Porto Seguro — where ML stops and neural nets start</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#30363d;
+    --txt:#e6edf3; --mut:#8b949e; --ok:#2ea043; --bad:#f85149;
+    --cur:#d29922; --acc:#58a6ff; --pur:#bc8cff; --hit:#3fb950;
+  }
+  *{box-sizing:border-box}
+  body{margin:0 auto;background:var(--bg);color:var(--txt);line-height:1.55;
+       font-family:ui-monospace,Menlo,Consolas,monospace;padding:22px;max-width:1180px}
+  h1{font-size:23px;margin:0 0 4px}
+  h2{font-size:16px;margin:34px 0 8px;color:var(--acc);border-bottom:1px solid var(--line);padding-bottom:6px}
+  h3{font-size:14px;margin:20px 0 6px;color:var(--pur)}
+  h4{font-size:13px;margin:14px 0 4px;color:var(--txt)}
+  p,li{font-size:13px;color:#c9d1d9}
+  .sub{color:var(--mut);font-size:12.5px}
+  .tag{display:inline-block;background:rgba(88,166,255,.15);border:1px solid var(--acc);
+       color:var(--acc);border-radius:5px;padding:1px 7px;font-size:11px;margin-right:5px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:10px}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:var(--txt);font-size:12px}
+  tr:nth-child(even) td{background:#12161d}
+  code{background:#0b1f33;color:#9cdcfe;border-radius:4px;padding:1px 5px;font-size:12px}
+  pre{background:#0a0e14;border:1px solid var(--line);border-radius:8px;padding:12px 14px;
+      overflow-x:auto;font-size:12px;line-height:1.5;margin:8px 0}
+  pre code{background:none;padding:0;color:#d7dce6}
+  a{color:var(--acc)}
+  .nb{display:inline-block;background:rgba(188,140,255,.13);border:1px solid rgba(188,140,255,.45);
+      color:var(--pur);border-radius:5px;padding:2px 8px;font-size:11px;text-decoration:none;margin:2px 4px 2px 0}
+  .nb:hover{background:rgba(188,140,255,.25)}
+  .bad-box{border-left:3px solid var(--bad);background:rgba(248,81,73,.07);padding:10px 12px;margin:10px 0;border-radius:0 8px 8px 0}
+  .win{border-left:3px solid var(--hit);background:rgba(63,185,80,.07);padding:10px 12px;margin:10px 0;border-radius:0 8px 8px 0}
+  .warn{border-left:3px solid var(--cur);background:rgba(210,153,34,.07);padding:10px 12px;margin:10px 0;border-radius:0 8px 8px 0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px}
+  .ex{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin:10px 0}
+  .ex .exhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;justify-content:space-between;margin-bottom:6px}
+  .ex .extitle{font-size:13px;color:var(--txt);font-weight:bold}
+  .pill{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:bold}
+  .pill.win{background:rgba(63,185,80,.18);color:var(--hit)}
+  .pill.bad{background:rgba(248,81,73,.18);color:var(--bad)}
+  .pill.mid{background:rgba(210,153,34,.18);color:var(--cur)}
+  .score{font-size:11.5px;color:var(--mut)}
+  .bar{height:9px;background:#0a0e14;border:1px solid var(--line);border-radius:5px;overflow:hidden;margin-top:3px}
+  .bar span{display:block;height:100%}
+  .chain{display:flex;flex-direction:column;gap:0}
+  .rung{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--acc);
+        border-radius:8px;padding:10px 13px;margin:0}
+  .wall{color:var(--bad);font-size:12px;padding:6px 0 6px 20px;position:relative}
+  .wall:before{content:"↓";position:absolute;left:4px;color:var(--bad);font-weight:bold}
+  .ov{overflow-x:auto}
+  .toc{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+  .toc a{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:5px 11px;
+         font-size:11.5px;text-decoration:none;color:var(--mut)}
+  .toc a:hover{color:var(--txt);border-color:var(--acc)}
+  hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+</style>
+</head>
+<body>
+
+<h1>Porto Seguro — where classical ML stops and neural nets start</h1>
+<div class="sub">The most-cited tabular competition in which neural networks beat gradient boosting.
+595,212 rows · 57 anonymised features · normalised Gini · ~3.6% positive class.</div>
+
+<div class="toc">
+  <a href="#data">0 · the data</a>
+  <a href="#trackA">1 · Track A — all-ML</a>
+  <a href="#score">2 · scoreboard</a>
+  <a href="#trackB">3 · Track B — how NNs got past it</a>
+  <a href="#clean">4 · cleaning: ML vs NN</a>
+  <a href="#ladder">5 · the NN ladder</a>
+  <a href="#honest">6 · honest limits</a>
+</div>
+
+<div class="warn"><b>What was and was not verified.</b> Kaggle's code pages render client-side, so their
+notebook bodies could not be read here — <b>every Kaggle notebook below is identified by title and
+metadata only, not by reading its cells.</b> Every <i>number</i> on this page comes from a source that
+was actually fetched and read: the winner's solution summary on
+<a href="https://kaggler.com/2017/12/01/winners-solution-porto-seguro.html">kaggler.com</a>, the 18th-place
+write-up at <a href="https://jeddy92.github.io/seguro/">jeddy92.github.io/seguro</a>, and the
+<a href="https://github.com/bluesky314/Representation-Learning-Porto-Seguro-s-Safe-Driver-Prediction">bluesky314
+representation-learning README</a>. Claims from those are attributed inline. Anything unattributed is
+standard practice, not a measured result from this competition.</div>
+
+<h2 id="data">0 · The data, in thirty seconds</h2>
+<div class="panel">
+<table>
+  <tr><th>Property</th><th>Value</th><th>Why it decides everything downstream</th></tr>
+  <tr><td>Rows</td><td>595,212 train</td><td><b>Large for tabular.</b> This is the first precondition for a neural net being competitive at all. At 10k rows it would not be.</td></tr>
+  <tr><td>Features</td><td>57, all anonymised</td><td>Named <code>ps_ind_*</code>, <code>ps_reg_*</code>, <code>ps_car_*</code>, <code>ps_calc_*</code>. <b>No domain meaning is available</b>, so hand-crafted feature engineering — the usual GBDT superpower — is mostly unavailable.</td></tr>
+  <tr><td>Suffixes</td><td><code>_bin</code>, <code>_cat</code>, else continuous/ordinal</td><td>The only schema hint you get. <code>_cat</code> columns include high-cardinality ones — the exact case where embeddings beat one-hot.</td></tr>
+  <tr><td>Missing</td><td>encoded as <code>-1</code></td><td>Not <code>NaN</code>. Load it naively and <code>-1</code> becomes a real numeric value that poisons every scaler and every distance.</td></tr>
+  <tr><td>Target</td><td>binary, ~3.6% positive</td><td>Heavily imbalanced. Accuracy is meaningless — predict all-zero and score 96%.</td></tr>
+  <tr><td>Metric</td><td>normalised Gini</td><td>A ranking metric (= 2·AUC − 1). You are scored on <b>ordering</b> risk, not on calibrated probabilities.</td></tr>
+  <tr><td><code>ps_calc_*</code> group</td><td>~20 columns</td><td>Widely reported as pure noise; top solutions dropped them. <span class="sub">(reported by multiple write-ups; not re-measured here)</span></td></tr>
+</table>
+<div class="win"><b>Why this competition is the right one for your question.</b> Three conditions had to
+hold simultaneously for a neural net to win a tabular contest: a lot of rows, no usable domain
+knowledge to hand-engineer, and high-cardinality categoricals. Porto Seguro is the rare dataset with
+all three. On Titanic none of them hold, which is exactly why gradient boosting wins there.</div>
+</div>
+
+<h2 id="trackA">1 · Track A — the all-ML approach, and where it stopped</h2>
+<p>Track A is not wrong. It is the correct first move, it produces the number everything else is judged
+against, and the eventual winner still kept one of its models in his final blend. What follows is where
+each stage runs out of room.</p>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">A1 · Profile and clean the data</span><span class="score">the part nobody skips and everybody rushes</span></div>
+  <a class="nb" href="https://www.kaggle.com/bertcarremans/data-preparation-exploration?scriptVersionId=1583911">nb ▸ bertcarremans · Data Preparation &amp; Exploration</a>
+  <a class="nb" href="https://www.kaggle.com/code/gpreda/porto-seguro-exploratory-analysis-and-prediction">nb ▸ gpreda · EDA and Prediction</a>
+  <a class="nb" href="https://www.kaggle.com/code/neviadomski/data-exploration-porto-seguro-s-safe-driver">nb ▸ neviadomski · Data Exploration</a>
+<pre><code>import pandas as pd, numpy as np
+train = pd.read_csv('train.csv')
+train = train.replace(-1, np.nan)                 # -1 is the missing sentinel, not a value
+
+meta = pd.DataFrame({'col': train.columns})
+meta['kind'] = np.where(meta.col.str.endswith('_bin'), 'binary',
+               np.where(meta.col.str.endswith('_cat'), 'categorical', 'numeric'))
+
+print(train.target.mean())                        # ~0.0365  -> imbalance
+print(train.isna().mean().sort_values().tail(8))  # which columns are actually empty
+print([c for c in train if c.endswith('_cat')
+       and train[c].nunique() > 20])              # the high-cardinality ones</code></pre>
+  <div class="sub">Nothing here is neural-net specific. Every model on both tracks needs this, and the
+  cardinality print in the last line is what later decides one-hot versus embedding.</div>
+</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">A2 · Linear baseline</span><span class="score">the floor</span></div>
+<pre><code>from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+
+lr = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000, C=0.1))
+# score with normalised Gini = 2*roc_auc_score(y, p) - 1</code></pre>
+  <div class="bad-box"><b>Where it stops:</b> one hyperplane over 57 columns. No interactions, no
+  thresholds, and every <code>_cat</code> column has to be one-hot expanded first or it is read as a
+  fake ordering — <code>ps_car_11_cat = 104</code> is not "greater than" <code>= 12</code>.</div>
+</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">A3 · Gradient boosting — the real Track A answer</span><span class="score">public kernels reached LB ≈ 0.279–0.284</span></div>
+  <a class="nb" href="https://www.kaggle.com/andreylisin/lightgbm-and-xgboost-stacked-lb-279">nb ▸ andreylisin · LightGBM + XGBoost stacked (LB .279)</a>
+  <a class="nb" href="https://www.kaggle.com/tilii7/bayesian-optimization-of-xgboost-parameters/notebook">nb ▸ tilii7 · Bayesian optimisation of XGBoost</a>
+<pre><code>import lightgbm as lgb
+X = train.drop(columns=[c for c in train if c.startswith('ps_calc')])  # widely reported as noise
+# trees need NO scaling, NO imputation, NO one-hot for low-cardinality
+model = lgb.LGBMClassifier(n_estimators=2000, learning_rate=0.02,
+                           num_leaves=31, subsample=.8, colsample_bytree=.8)</code></pre>
+  <div class="sub">Three lines of preprocessing, because trees are indifferent to scale, monotone
+  transforms and raw missing markers. That convenience is precisely what makes Track A the correct
+  starting point.</div>
+  <div class="bad-box"><b>Where it stops — four structural ceilings:</b>
+    <br><b>1. High-cardinality categoricals.</b> A split on a 100-level anonymised code is a split on one
+    arbitrary subset. Trees have no way to place similar categories near each other, because they have no
+    notion of "near".
+    <br><b>2. No learned representation.</b> A fitted GBDT is a pile of thresholds. Nothing inside it can
+    be extracted and reused by another model. Compare Track B, where the embedding matrix <i>is</i> a
+    reusable artefact.
+    <br><b>3. Features are anonymised.</b> The usual escape hatch — engineer smarter columns — is closed.
+    You cannot build <code>debt_to_income</code> out of <code>ps_ind_03</code>.
+    <br><b>4. Tuning is exhausted quickly.</b> The Bayesian-optimisation kernel exists to demonstrate
+    this: once the search is done, the ceiling is the model class, not the hyperparameters.</div>
+</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">A4 · Ensemble everything</span><span class="score">18th place: CV Gini 0.2924 · test 0.2916</span></div>
+  <a class="nb" href="https://jeddy92.github.io/seguro/">write-up ▸ jeddy92 · 18th place, "Safety in Numbers"</a>
+  <div class="sub">Verified from that write-up: roughly <b>40 models vetted, 16 kept</b> in the final
+  ensemble — XGBoost, LightGBM, Regularised Greedy Forests, Field-Aware Factorisation Machines and an
+  entity-embedding neural net, combined by an L2-regularised logistic-regression meta-learner.</div>
+  <div class="bad-box"><b>Where it stops:</b> this is the top of Track A, and it took forty models to get
+  there. Notice what is already inside that ensemble — an entity-embedding neural net. Even the best
+  purely-classical route needed a neural component to reach the top twenty. The author's own conclusion,
+  quoted from the write-up: with the right preparation and structural design, neural networks
+  <i>"could match or exceed traditional boosting performance on tabular data."</i></div>
+</div>
+
+<h2 id="score">2 · The scoreboard — how big is the gap, really</h2>
+<div class="panel">
+<div class="sub">Normalised Gini. Higher is better. Read the bars, then read the warning under them.</div>
+<table>
+  <tr><th>Approach</th><th>Score</th><th></th><th>Source</th></tr>
+  <tr><td>Public GBDT stack kernel</td><td>~0.279 LB</td>
+      <td><div class="bar"><span style="width:64%;background:var(--cur)"></span></div></td>
+      <td class="sub">notebook title (andreylisin)</td></tr>
+  <tr><td>Winner's DAE features, <i>without</i> test data</td><td>0.2890 CV / 0.29235 priv</td>
+      <td><div class="bar"><span style="width:82%;background:var(--acc)"></span></div></td>
+      <td class="sub">kaggler.com summary</td></tr>
+  <tr><td>Winner's DAE features, with test data</td><td>0.2900 CV / 0.29298 priv</td>
+      <td><div class="bar"><span style="width:84%;background:var(--acc)"></span></div></td>
+      <td class="sub">kaggler.com summary</td></tr>
+  <tr><td>18th place — 16-model classical ensemble</td><td>0.2924 CV / 0.2916 test</td>
+      <td><div class="bar"><span style="width:88%;background:var(--pur)"></span></div></td>
+      <td class="sub">jeddy92 write-up</td></tr>
+  <tr><td>Winner — top two single models</td><td>0.29502</td>
+      <td><div class="bar"><span style="width:95%;background:var(--hit)"></span></div></td>
+      <td class="sub">kaggler.com summary</td></tr>
+  <tr><td><b>Winner — 1× LightGBM + 5× NN, equal weights</b></td><td><b>0.2965 private</b></td>
+      <td><div class="bar"><span style="width:100%;background:var(--hit)"></span></div></td>
+      <td class="sub">kaggler.com summary</td></tr>
+</table>
+<div class="bad-box"><b>Read this before you get excited.</b> The whole spread from a decent public GBDT
+kernel to the winning solution is roughly <b>0.017 Gini</b>, and from a strong classical ensemble to the
+winner is about <b>0.004</b>. Neural networks did not crush gradient boosting here — they edged past it,
+at the cost of a denoising autoencoder, a custom normalisation and five networks.
+<br><br>And the winning blend <b>still contained a LightGBM</b>. Track B did not replace Track A. It
+added a differently-wrong model whose errors were uncorrelated enough to be worth averaging in.</div>
+</div>
+
+<h2 id="trackB">3 · Track B — how the neural nets got past Track A</h2>
+<p>Three specific mechanisms, each of which a tree structurally cannot perform. This is the answer to
+"how did Track B get further" — not "it was deeper", but these three things.</p>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">B1 · Entity embeddings — categories become geometry</span><span class="pill win">trees cannot do this</span></div>
+  <a class="nb" href="https://www.kaggle.com/code/aquatic/entity-embedding-neural-net">nb ▸ aquatic · Entity Embedding Neural Net</a>
+  <a class="nb" href="https://www.kaggle.com/code/veerendrab/using-entity-embeddings-and-neural-networks">nb ▸ veerendrab · Using Entity Embeddings</a>
+  <a class="nb" href="https://arxiv.org/pdf/1604.06737">paper ▸ Guo &amp; Berkhahn, Entity Embeddings</a>
+<pre><code># one-hot: 104 categories -> 104 orthogonal columns, all equidistant.
+#          the model can never learn that category 12 behaves like category 47.
+# embedding: 104 categories -> a learned 8-dimensional vector each.
+#          similar-behaving categories drift together during training.
+
+import torch.nn as nn
+emb_dim = lambda n: min(50, (n + 1) // 2)      # common heuristic, cardinality -> width
+emb = nn.ModuleList([nn.Embedding(n, emb_dim(n)) for n in cardinalities])</code></pre>
+  <div class="win"><b>Why this is the core mechanism.</b> The embedding is <b>learned from the target</b>,
+  so it is a supervised dimensionality reduction. And it is an <i>extractable artefact</i>: per the
+  jeddy92 write-up, the embeddings were pulled out of the network and <b>fed back into LightGBM as
+  features</b>. That is Track B directly upgrading Track A — the exact thing you asked about.</div>
+</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">B2 · RankGauss — the normalisation that made the nets trainable</span><span class="pill win">winner's step</span></div>
+  <a class="nb" href="https://kaggler.com/2017/12/01/winners-solution-porto-seguro.html">source ▸ winner's solution summary</a>
+  <a class="nb" href="https://github.com/bluesky314/Representation-Learning-Porto-Seguro-s-Safe-Driver-Prediction">repo ▸ bluesky314 · representation learning</a>
+<pre><code>from scipy.special import erfinv
+def rank_gauss(x):
+    r = x.argsort().argsort()                  # ranks
+    r = (r / (len(r) - 1) - 0.5) * 2 * 0.998   # -> (-1, 1), endpoints pulled in
+    return erfinv(r)                           # -> approximately Gaussian
+
+# quoted from the winner's summary: rank transform, then "inverse of error function
+# ErfInv to shape them like Gaussian". Better than standard scaling for gradient-based
+# models; tree models are unaffected by it.</code></pre>
+  <div class="sub">The bluesky314 README reports GaussRank reaching "half the loss in 2 epochs versus 500
+  with standard normalisation". Treat that as one repo's claim, not a benchmark — but the direction is
+  consistent with the winner independently choosing the same transform.</div>
+  <div class="warn"><b>This is the cleanest illustration of the whole page.</b> The same transform that
+  is <i>decisive</i> for a neural net is <i>invisible</i> to a tree, because trees split on order and
+  RankGauss preserves order exactly. Preprocessing is not a fixed checklist — it is a function of which
+  model you are feeding.</div>
+</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">B3 · Denoising autoencoder with swap noise — the winning move</span><span class="pill win">1st place, 0.2965</span></div>
+  <a class="nb" href="https://www.kaggle.com/competitions/porto-seguro-safe-driver-prediction/discussion/44629">forum ▸ Jahrer · "1st place with representation learning"</a>
+<pre><code># swap noise: replace 15% of values with values drawn from ANOTHER ROW
+# of the same column. Gaussian noise is wrong for tabular data - it would
+# invent category 3.7. Swapping keeps every value legal.
+mask = np.random.rand(*X.shape) < 0.15
+X_noisy = np.where(mask, X[np.random.permutation(len(X))], X)
+
+# 1. train a DAE on train+test together to reconstruct X from X_noisy
+# 2. throw away the reconstruction; keep the HIDDEN ACTIVATIONS as new features
+#    ("deep stack": concatenate activations of all hidden layers -> 1k-10k features)
+# 3. train the supervised MLP on those activations, never on the raw columns</code></pre>
+  <div class="sub">Verified details of the supervised nets from the solution summary: hidden layer size
+  1000, ReLU, sigmoid output, plain SGD with learning-rate decay, MSE loss, input dropout. Final
+  submission: <b>1 LightGBM + 5 neural nets, equal weight, private 0.2965</b>. He reported that
+  XGBoost, nonlinear stacking, bagging, GANs and most manual feature engineering did <b>not</b> work
+  for him.</div>
+  <div class="win"><b>Why an autoencoder at all?</b> The features are anonymised, so no human can
+  engineer good ones. So he had the network engineer them — unsupervised, using train and test together,
+  learning the joint structure of the columns before ever looking at the target. That is what
+  "representation learning" means in his title, and it is the thing gradient boosting has no equivalent
+  of.</div>
+</div>
+
+<div class="panel">
+<h3>The three mechanisms, against Track A's four ceilings</h3>
+<table>
+  <tr><th>Track A ceiling</th><th>Track B answer</th><th>Mechanism</th></tr>
+  <tr><td>High-cardinality categoricals split arbitrarily</td><td>Categories get coordinates; similar ones move together</td><td>entity embeddings</td></tr>
+  <tr><td>Nothing learned is extractable or reusable</td><td>Embeddings and DAE activations are features you can hand to LightGBM</td><td>representation learning</td></tr>
+  <tr><td>Anonymised features block feature engineering</td><td>The DAE engineers features without needing to know what they mean</td><td>swap-noise DAE</td></tr>
+  <tr><td>Tuning exhausted; ceiling is the model class</td><td>A different model class, wrong in different places, so blending pays</td><td>1× LGB + 5× NN</td></tr>
+</table>
+</div>
+
+<h2 id="clean">4 · Cleaning and preprocessing — ML versus NN, step by step</h2>
+<p>The single most useful table on this page. Same dataset, same eight steps, two very different
+answers, because the two model families fail in different ways.</p>
+<div class="ov">
+<table>
+  <tr><th>#</th><th>Step</th><th>For gradient boosting</th><th>For a neural net</th><th>What breaks if you use the tree answer on a net</th></tr>
+  <tr><td>1</td><td>Missing sentinel <code>-1</code></td><td>Leave it. Trees split it off into its own branch and it often carries signal.</td><td><b>Must be handled.</b> Convert to NaN, impute (median/mode), and add an explicit <code>_isna</code> flag column so the fact of missingness survives.</td><td><code>-1</code> enters the weighted sum as a real number. It shifts every scaler and drags the first layer's activations.</td></tr>
+  <tr><td>2</td><td>Feature scaling</td><td><b>Skip entirely.</b> Splits are order-based; scale is irrelevant.</td><td><b>Mandatory.</b> RankGauss for continuous columns, or at minimum standardise.</td><td>Unscaled inputs produce huge activations, exploding or vanishing gradients, and a loss curve that is flat or <code>nan</code>.</td></tr>
+  <tr><td>3</td><td>Skewed / heavy-tailed columns</td><td>Ignore. Monotone transforms cannot change a split.</td><td>Fix them — RankGauss handles skew and outliers in one pass.</td><td>A handful of extreme rows dominate the gradient for many epochs.</td></tr>
+  <tr><td>4</td><td>Low-cardinality categoricals (&lt; ~15 levels)</td><td>Pass as integer codes; LightGBM handles them natively.</td><td>One-hot encode.</td><td>Integer codes imply a false ordering — the net reads category 7 as "more than" category 2.</td></tr>
+  <tr><td>5</td><td>High-cardinality categoricals</td><td>Target-encode, <b>fitted inside the CV folds</b>, or leave to LightGBM's native handling.</td><td><b>Embed.</b> One <code>nn.Embedding(n_levels, dim)</code> per column, <code>dim ≈ min(50, (n+1)//2)</code>.</td><td>One-hot on a 104-level column adds 104 near-empty inputs; the net wastes capacity and never learns which levels are alike.</td></tr>
+  <tr><td>6</td><td>Class imbalance (3.6%)</td><td><code>scale_pos_weight</code>, or nothing at all — Gini is a ranking metric and is fairly robust.</td><td>Class weights in the loss, or downsample negatives. Watch that downsampling distorts calibration.</td><td>The net can collapse to predicting the majority class and stall there.</td></tr>
+  <tr><td>7</td><td>Useless columns (<code>ps_calc_*</code>)</td><td>Drop them; reported as noise by top solutions.</td><td>Drop them too — same reason, and here they also waste input width.</td><td>Same direction for both. Rare.</td></tr>
+  <tr><td>8</td><td>Fitting the transforms</td><td>Fit inside CV folds. Target encoding leaks catastrophically otherwise.</td><td>Same rule for scalers and imputers. <b>Exception:</b> an unsupervised DAE may legitimately see test <i>features</i> — the winner did exactly that.</td><td>Fit a scaler on train+val and your validation score is optimistic and useless for model selection.</td></tr>
+</table>
+</div>
+
+<div class="win"><b>The rule underneath the table.</b> Trees are invariant to any monotone transform of a
+single feature, and indifferent to scale and to missing markers. Neural nets are invariant to none of
+those. So "cleaning" is not one pipeline you write once — <b>it is a function of the model you are about
+to feed.</b> The winner's RankGauss step is worth nothing to a tree and decisive for a net; that is the
+whole idea in one example.</div>
+
+<div class="ex">
+  <div class="exhead"><span class="extitle">The NN preprocessing pipeline, in order</span></div>
+<pre><code>import numpy as np, pandas as pd
+from scipy.special import erfinv
+from sklearn.model_selection import StratifiedKFold
+
+df = pd.read_csv('train.csv')
+y  = df.pop('target'); df.pop('id')
+
+# 1. drop the noise group
+df = df.drop(columns=[c for c in df if c.startswith('ps_calc')])
+
+# 2. -1 means missing. record THAT it was missing, then fill.
+df = df.replace(-1, np.nan)
+for c in df.columns[df.isna().any()]:
+    df[c + '_isna'] = df[c].isna().astype(np.float32)
+cat = [c for c in df if c.endswith('_cat')]
+num = [c for c in df if c not in cat and not c.endswith('_bin')
+                     and not c.endswith('_isna')]
+df[cat] = df[cat].fillna(-1).astype('int32')       # own level for "missing"
+df[num] = df[num].fillna(df[num].median())
+
+# 3. RankGauss the continuous columns  (fit on TRAIN ONLY, per fold)
+def rank_gauss(x):
+    r = x.argsort().argsort()
+    return erfinv((r / (len(r) - 1) - .5) * 2 * .998)
+for c in num:
+    df[c] = rank_gauss(df[c].values)
+
+# 4. categoricals -> contiguous codes, ready for nn.Embedding
+for c in cat:
+    df[c] = pd.factorize(df[c])[0]
+cards = [int(df[c].max()) + 1 for c in cat]
+
+# 5. stratified folds - the positive class is only 3.6%
+cv = StratifiedKFold(5, shuffle=True, random_state=0)</code></pre>
+  <div class="warn"><b>Steps 2 and 3 are the two that a tree pipeline would simply not contain.</b> If you
+  are converting a working GBDT script into a neural-net script, those are the lines you are missing.</div>
+</div>
+
+<h2 id="ladder">5 · The neural-net ladder for tabular data</h2>
+<p>Smallest model first. Climb only when you can state, in your own measured numbers, the wall the
+current rung hit. A rung climbed without a wall teaches nothing, because you never learn what the
+previous model could not do.</p>
+
+<div class="chain">
+  <div class="rung"><b>Rung 0 · Constant predictor</b> <span class="pill mid">Gini 0.0</span>
+    <div class="sub">Predict the base rate for everyone. Gini is 0 by definition. Anything at 0 is broken,
+    not undertrained. Two lines, and it calibrates your instinct for what the metric means.</div></div>
+  <div class="wall">You have a floor but no model.</div>
+
+  <div class="rung"><b>Rung 1 · Logistic regression</b> <span class="pill mid">baseline</span>
+    <div class="sub">Standardise, one-hot the low-cardinality categoricals. This is a
+    <b>single-layer perceptron with a sigmoid</b> — the literal ancestor. Everything above must beat it or
+    has a bug.</div></div>
+  <div class="wall">One hyperplane. No interactions, no thresholds. The XOR wall, on 57 columns.</div>
+
+  <div class="rung"><b>Rung 2 · LightGBM</b> <span class="pill win">your real bar ≈ 0.279+</span>
+    <div class="sub">Not a neural net, and it belongs here anyway. This is the number a tabular neural net
+    has to justify itself against. Skip it and you will never know whether your net is good or merely
+    working.</div></div>
+  <div class="wall">Ceiling on high-cardinality categoricals; nothing learned is reusable; features are anonymised so engineering is blocked.</div>
+
+  <div class="rung"><b>Rung 3 · Plain MLP</b> — <code>input → 256 → 128 → 1</code>
+    <div class="sub">Fully-connected, ReLU, dropout 0.3, BatchNorm, Adam <code>1e-3</code>, one-hot
+    categoricals. <b>Expect it to lose to rung 2</b>, and expect that to be the norm on tabular data.
+    Its job is to prove your pipeline runs end to end.</div>
+    <div class="sub" style="margin-top:5px">
+      <a class="nb" href="https://www.kaggle.com/code/rspadim/gini-keras-callback-earlystopping-validation/code">nb ▸ rspadim · Gini + Keras EarlyStopping</a>
+      <a class="nb" href="https://www.kaggle.com/code/tomcwalker/keras-nn-with-custom-loss-function-for-gini-auc">nb ▸ tomcwalker · Keras NN, custom Gini/AUC loss</a>
+    </div></div>
+  <div class="wall">One-hot on high-cardinality columns wastes width and learns no similarity between levels. This is the wall that matters.</div>
+
+  <div class="rung"><b>Rung 4 · MLP + entity embeddings</b> <span class="pill win">first rung that earns its place</span>
+    <div class="sub">One embedding per <code>_cat</code> column, concatenated with the RankGauss'd numerics,
+    then the same dense head. Per the bluesky314 README, send the numeric block through its own
+    fully-connected layer first so the embeddings do not dominate the concatenation.
+    <b>This is the first architecture doing something LightGBM structurally cannot.</b></div>
+    <div class="sub" style="margin-top:5px">
+      <a class="nb" href="https://www.kaggle.com/code/aquatic/entity-embedding-neural-net">nb ▸ aquatic · Entity Embedding Neural Net</a>
+      <a class="nb" href="https://www.kaggle.com/code/veerendrab/using-entity-embeddings-and-neural-networks">nb ▸ veerendrab · Entity Embeddings and NNs</a>
+    </div></div>
+  <div class="wall">Competitive with rung 2, rarely a clear win alone. And the numeric columns are still raw inputs — nothing has learned <i>their</i> structure.</div>
+
+  <div class="rung"><b>Rung 5 · Blend rung 4 with rung 2</b> <span class="pill win">the cheapest real gain</span>
+    <div class="sub">Average the two rank-normalised prediction vectors. They fail on different rows, so
+    the blend beats both. <b>Do this before anything more complicated.</b> The winner's final submission
+    was exactly this idea: 1 LightGBM + 5 neural nets, equal weights, 0.2965.</div></div>
+  <div class="wall">You have squeezed the models you have. Further gain needs better <i>features</i>, and the columns are anonymised.</div>
+
+  <div class="rung"><b>Rung 6 · Feed embeddings back into LightGBM</b>
+    <div class="sub">Extract the trained embedding vectors, append them as ordinary numeric columns, retrain
+    the GBDT. Reported in the jeddy92 write-up as part of an 18th-place ensemble. Track B improving
+    Track A, concretely.</div></div>
+  <div class="wall">Embeddings only describe the categorical columns. The numeric block is still unrepresented.</div>
+
+  <div class="rung"><b>Rung 7 · Denoising autoencoder + supervised MLP</b> <span class="pill win">1st place · 0.2965</span>
+    <div class="sub">Swap noise at 15%, DAE trained on train+test features, hidden activations taken as the
+    new feature matrix (1k–10k wide), then MLPs with hidden width 1000 trained on those activations.
+    Expensive, and the top of the ladder for a reason.</div>
+    <div class="sub" style="margin-top:5px">
+      <a class="nb" href="https://www.kaggle.com/competitions/porto-seguro-safe-driver-prediction/discussion/44629">forum ▸ Jahrer · 1st place with representation learning</a>
+      <a class="nb" href="https://kaggler.com/2017/12/01/winners-solution-porto-seguro.html">summary ▸ kaggler.com</a>
+    </div></div>
+</div>
+
+<div class="warn"><b>Where to actually stop.</b> Rung 5 is the honest destination for a first pass. Rungs
+6 and 7 are the competition endgame — worth reading in full, worth implementing only once rungs 1
+through 5 are all measured and on paper. If your rung 3 MLP loses to rung 2 LightGBM, that is not a
+failure; that is the expected result, and it is the whole reason rung 4 exists.</div>
+
+<h2 id="honest">6 · Honest limits of this page</h2>
+<div class="panel">
+<ul>
+  <li><b>No Kaggle notebook body was read.</b> Kaggle renders code pages client-side; the fetches returned
+  titles only, and the CLI token in <code>~/.kaggle/kaggle.json</code> returned <code>401 Unauthorized</code>.
+  Every notebook link is a pointer, described from its title and search metadata — not an audit of its cells.</li>
+  <li><b>Every score is attributed.</b> 0.2965, 0.29502, 0.2900/0.2890, hidden size 1000, 15% swap noise
+  and the RankGauss description come from the fetched
+  <a href="https://kaggler.com/2017/12/01/winners-solution-porto-seguro.html">kaggler.com summary</a> of
+  Jahrer's post. 0.2924 CV / 0.2916 test and the 40-models-16-kept detail come from the fetched
+  <a href="https://jeddy92.github.io/seguro/">jeddy92 write-up</a>. The three-stage embedding design, the
+  GaussRank convergence claim and swap noise at 15% also appear in the fetched
+  <a href="https://github.com/bluesky314/Representation-Learning-Porto-Seguro-s-Safe-Driver-Prediction">bluesky314 README</a>.</li>
+  <li><b>The LB ≈ 0.279 figure</b> comes from a notebook <i>title</i>, not from a verified leaderboard read.</li>
+  <li><b>Nothing here was run.</b> No model on this page was trained on this machine. The code blocks are
+  correct in shape and intent; treat them as a starting skeleton, not as validated output.</li>
+  <li><b>The <code>ps_calc</code> drop</b> is widely reported across write-ups and was not re-measured here.</li>
+</ul>
+</div>
+
+<hr>
+<div class="sub">Companion pages: <code>/root/prep/kaggle/fashion_mnist.html</code> (images, CNN) ·
+<code>/root/kaggle/neural_networks/nn_evolution_guide.html</code> (architectures) ·
+<code>/root/kaggle/neural_networks/perceptron_for_kids.html</code> (the one neuron).</div>
+
+</body>
+</html>

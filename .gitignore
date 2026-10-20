@@ -1,0 +1,20 @@
+#-- dataset--
+*.csv
+*.zip
+**!submission*.csv
+
+# -- model weight 
+*.pkl
+*.pth
+*.pt
+# --python
+.venv/
+__pycache/
+.ipynb_checkpoints/
+
+# -- Imp 
+kaggle.json
+.env
+
+
+
